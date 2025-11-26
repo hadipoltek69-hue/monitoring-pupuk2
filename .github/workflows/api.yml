@@ -1,0 +1,36 @@
+name: Sensor Data API
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sensor_data]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      
+    - name: Process Data
+      id: process
+      run: |
+        # Create data directory if not exists
+        mkdir -p data
+        
+        # Create or update data file
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        DATA='{"timestamp":"'$TIMESTAMP'","data":${{ toJson(github.event.client_payload.data) }}}'
+        
+        echo "$DATA" > data/latest.json
+        echo "$DATA" >> data/history.json
+        
+        # Count records
+        echo "records=$(echo '${{ toJson(github.event.client_payload.data) }}' | jq length)" >> $GITHUB_OUTPUT
+        
+    - name: Commit and Push
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add -A
+        git commit -m "Update sensor data" || exit 0
+        git push
